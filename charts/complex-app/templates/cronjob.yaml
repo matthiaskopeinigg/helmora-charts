@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "complex-app.fullname" . }}-backup
+  labels:
+    app: database
+spec:
+  schedule: "0 0 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: database
+        spec:
+          containers:
+          - name: backup
+            image: alpine:latest
+            command: ["sh", "-c", "echo backing up database"]
+            env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "complex-app.fullname" . }}-db-secret
+                  key: DB_PASSWORD
+          restartPolicy: OnFailure

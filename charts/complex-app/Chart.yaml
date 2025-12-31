@@ -1,0 +1,6 @@
+apiVersion: v2
+name: complex-app
+description: A Helm chart with many resources and deep connections for graph visualization testing.
+type: application
+version: 0.1.0
+appVersion: "1.16.0"
