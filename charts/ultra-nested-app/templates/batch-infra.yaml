@@ -1,0 +1,62 @@
+# Batch Processing Layer (CronJob -> Job -> Pod)
+{{- $fullName := include "ultra-nested.fullname" . -}}
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-cleanup
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cleanup
+            image: alpine
+            command: ["sh", "-c", "echo cleaning up"]
+          restartPolicy: OnFailure
+---
+# Parallel Jobs
+{{- range $i := until (int .Values.components.jobs.batchCount) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-batch-{{ $i }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: processor
+        image: alpine
+        command: ["sh", "-c", "echo processing batch {{ $i }}"]
+      restartPolicy: OnFailure
+---
+{{- end }}
+
+# Infrastructure Guardrails (ResourceQuota & LimitRange)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ $fullName }}-quota
+spec:
+  hard:
+    pods: "20"
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "10"
+    limits.memory: 16Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ $fullName }}-limits
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container

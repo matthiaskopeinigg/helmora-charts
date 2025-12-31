@@ -1,0 +1,50 @@
+# Deep Security Layer (SA -> Role -> RoleBinding -> ClusterRole -> ClusterRoleBinding)
+{{- $fullName := include "ultra-nested.fullname" . -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullName }}-api-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullName }}-api-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullName }}-api-rb
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-api-sa
+roleRef:
+  kind: Role
+  name: {{ $fullName }}-api-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullName }}-cluster-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "namespaces"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullName }}-api-crb
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-api-sa
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $fullName }}-cluster-reader
+  apiGroup: rbac.authorization.k8s.io

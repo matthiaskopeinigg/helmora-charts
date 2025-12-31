@@ -1,0 +1,94 @@
+# Multi-tiered Application Resources
+{{- $fullName := include "ultra-nested.fullname" . -}}
+
+# 1. API Layer (Deployment -> HPA -> PDB -> Service -> Ingress)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-api
+  labels:
+    component: api
+    {{- include "ultra-nested.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.components.api.replicas }}
+  selector:
+    matchLabels:
+      component: api
+  template:
+    metadata:
+      labels:
+        component: api
+    spec:
+      serviceAccountName: {{ $fullName }}-api-sa
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: {{ $fullName }}-api-config
+            - secretRef:
+                name: {{ $fullName }}-api-secret
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-api
+  labels:
+    component: api
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 80
+  selector:
+    component: api
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullName }}-api
+spec:
+  scaleTargetRef:
+    apiGroup: apps
+    kind: Deployment
+    name: {{ $fullName }}-api
+  minReplicas: {{ .Values.components.api.hpa.minReplicas }}
+  maxReplicas: {{ .Values.components.api.hpa.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullName }}-api
+spec:
+  minAvailable: {{ .Values.components.api.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      component: api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-api
+  labels:
+    component: api
+spec:
+  rules:
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $fullName }}-api
+            port:
+              number: 80

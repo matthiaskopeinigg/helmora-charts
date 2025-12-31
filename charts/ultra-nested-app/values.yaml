@@ -1,0 +1,27 @@
+global:
+  app: ultra-nested
+
+components:
+  api:
+    replicas: 3
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+    pdb:
+      enabled: true
+      minAvailable: 1
+  database:
+    replicas: 3
+  workers:
+    count: 5
+  jobs:
+    batchCount: 3
+
+image:
+  repository: nginx
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 80

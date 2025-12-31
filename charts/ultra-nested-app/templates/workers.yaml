@@ -1,0 +1,72 @@
+# Complex Configuration Layer (Multiple ConfigMaps/Secrets linked to multiple apps)
+{{- $fullName := include "ultra-nested.fullname" . -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-api-config
+data:
+  LOG_LEVEL: "DEBUG"
+  FEATURE_X: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-api-secret
+type: Opaque
+data:
+  DB_CONN: {{ "postgres://user:pass@db:5432" | b64enc | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-shared-params
+data:
+  REGION: "us-east-1"
+  ENV: "testing"
+---
+# Worker Layer (StatefulSet -> Headless Service -> PVC)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-worker-headless
+spec:
+  clusterIP: None
+  selector:
+    component: worker
+  ports:
+  - port: 9000
+    name: mesh
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}-worker
+spec:
+  serviceName: {{ $fullName }}-worker-headless
+  replicas: {{ .Values.components.workers.count }}
+  selector:
+    matchLabels:
+      component: worker
+  template:
+    metadata:
+      labels:
+        component: worker
+    spec:
+      containers:
+      - name: worker
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        envFrom:
+          - configMapRef:
+              name: {{ $fullName }}-shared-params
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
