@@ -1,0 +1,67 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 21. HorizontalPodAutoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $fullName }}-hpa
+spec:
+  scaleTargetRef:
+    apiGroup: apps
+    kind: Deployment
+    name: {{ $fullName }}-deploy
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+---
+# 22. PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $fullName }}-pdb
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web
+---
+# 23. ResourceQuota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ $fullName }}-quota
+spec:
+  hard:
+    pods: "10"
+---
+# 24. LimitRange
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ $fullName }}-limits
+spec:
+  limits:
+  - type: Container
+    defaultRequest:
+      cpu: 100m
+---
+# 25. PriorityClass
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ $fullName }}-priority
+value: 1000000
+globalDefault: false
+description: "High priority class"
+---
+# 26. RuntimeClass
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: {{ $fullName }}-runtime
+handler: runc

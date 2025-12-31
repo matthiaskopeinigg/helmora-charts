@@ -1,0 +1,82 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 5. Service (ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-svc-clusterip
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: web
+---
+# 6. Service (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-svc-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8080
+    nodePort: 30080
+  selector:
+    app: web
+---
+# 7. Service (LoadBalancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-svc-lb
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 443
+  selector:
+    app: web
+---
+# 8. Service (Headless)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-svc-headless
+spec:
+  clusterIP: None
+  ports:
+  - port: 5432
+  selector:
+    app: db
+---
+# 9. Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-ingress
+spec:
+  rules:
+  - host: {{ .Values.network.ingress.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $fullName }}-svc-clusterip
+            port:
+              number: 80
+---
+# 10. NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-netpol
+spec:
+  podSelector:
+    matchLabels:
+      app: db
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: web

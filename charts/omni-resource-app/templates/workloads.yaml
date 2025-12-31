@@ -1,0 +1,88 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 1. Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-deploy
+  labels:
+    {{- include "omni.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      priorityClassName: {{ $fullName }}-priority
+      containers:
+      - name: nginx
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: 80
+---
+# 2. StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullName }}-sts
+spec:
+  serviceName: {{ $fullName }}-svc-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+      - name: db
+        image: postgres:alpine
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.storage.class }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.size }}
+---
+# 3. DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ $fullName }}-ds
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      containers:
+      - name: agent
+        image: alpine
+        command: ["sleep", "infinite"]
+---
+# 4. Bare Pod (Connected via labels)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $fullName }}-isolated-pod
+  labels:
+    app: debug
+spec:
+  containers:
+  - name: debug
+    image: busybox
+    command: ["sleep", "3600"]

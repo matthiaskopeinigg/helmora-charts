@@ -1,0 +1,31 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 27. Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: worker
+        image: alpine
+        command: ["echo", "done"]
+      restartPolicy: Never
+---
+# 28. CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-cron
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cron-worker
+            image: alpine
+            command: ["echo", "tick"]
+          restartPolicy: OnFailure

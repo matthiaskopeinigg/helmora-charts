@@ -1,0 +1,53 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 16. ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullName }}-sa
+---
+# 17. Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullName }}-role
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+---
+# 18. RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullName }}-rb
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-sa
+roleRef:
+  kind: Role
+  name: {{ $fullName }}-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# 19. ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullName }}-cr
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list"]
+---
+# 20. ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullName }}-crb
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-sa
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ $fullName }}-cr
+  apiGroup: rbac.authorization.k8s.io

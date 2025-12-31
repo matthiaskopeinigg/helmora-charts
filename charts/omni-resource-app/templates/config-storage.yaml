@@ -1,0 +1,55 @@
+{{- $fullName := include "omni.fullname" . -}}
+# 11. ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-cm
+data:
+  config.yaml: |
+    key: value
+---
+# 12. Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}-secret
+type: Opaque
+data:
+  password: {{ "secret" | b64enc | quote }}
+---
+# 13. PersistentVolume (Namespace-scoped workaround or just the Kind)
+# Note: PV is cluster-scoped but often shown in graph views linked to PVCs
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $fullName }}-pv
+spec:
+  capacity:
+    storage: {{ .Values.storage.size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: {{ .Values.storage.class }}
+  hostPath:
+    path: "/tmp/data"
+---
+# 14. PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullName }}-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+---
+# 15. StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storage.class }}
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
